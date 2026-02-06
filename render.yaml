@@ -4,12 +4,9 @@ services:
     env: node
     region: frankfurt
     plan: free
-    buildCommand: |
-      cd backend
-      npm install
-    startCommand: |
-      cd backend
-      node index.js
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: node index.js
     autoDeploy: true
     envVars:
       - key: NODE_ENV
@@ -44,11 +41,9 @@ services:
     env: static
     region: frankfurt
     plan: free
-    buildCommand: |
-      cd frontend
-      npm install
-      npm run build
-    publishPath: frontend/dist
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    publishPath: dist
     autoDeploy: true
     envVars:
       - key: VITE_API_URL

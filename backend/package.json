@@ -1,6 +1,9 @@
 {
   "name": "users-admin-backend",
   "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"

@@ -10,16 +10,33 @@ const dbConfig = {
   database: process.env.DB_NAME,
 };
 
-const connection = await mysql.createConnection({
-  host: dbConfig.host,
-  user: dbConfig.user,
-  password: dbConfig.password,
-});
+const delay = ms => new Promise(r => setTimeout(r, ms));
 
-await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\``);
-console.log(`✅ База ${dbConfig.database} готова`);
+async function connectWithRetry(retries = 10) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      if (!dbConfig.host || !dbConfig.user || !dbConfig.database) {
+        throw new Error('DB env vars missing: DB_HOST/DB_USER/DB_NAME');
+      }
+      const connection = await mysql.createConnection({
+        host: dbConfig.host,
+        user: dbConfig.user,
+        password: dbConfig.password,
+      });
+      await connection.query(`CREATE DATABASE IF NOT EXISTS \`${dbConfig.database}\``);
+      console.log(`✅ База ${dbConfig.database} готова`);
+      await connection.end();
+      const db = await mysql.createConnection(dbConfig);
+      return db;
+    } catch (err) {
+      console.error(`DB connect attempt ${attempt} failed:`, err.message);
+      if (attempt === retries) throw err;
+      await delay(3000);
+    }
+  }
+}
 
-export const db = await mysql.createConnection(dbConfig);
+export const db = await connectWithRetry();
 
 await db.query(`
   CREATE TABLE IF NOT EXISTS users (
