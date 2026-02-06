@@ -39,7 +39,6 @@ services:
   - name: users-admin-frontend
     type: web
     env: static
-    region: frankfurt
     plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
