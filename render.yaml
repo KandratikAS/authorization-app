@@ -12,15 +12,15 @@ services:
       - key: NODE_ENV
         value: production
       - key: JWT_SECRET
-        sync: false
+        value: supersecret
       - key: DB_HOST
-        sync: false
+        value: localhost
       - key: DB_USER
-        sync: false
+        value: root
       - key: DB_PASSWORD
-        sync: false
+        value:
       - key: DB_NAME
-        sync: false
+        value: users
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
@@ -47,4 +47,4 @@ services:
     autoDeploy: true
     envVars:
       - key: VITE_API_URL
-        value: https://authorization-app-5t6x.onrender.com
+        value: https://authorization-app-j376.onrender.com
