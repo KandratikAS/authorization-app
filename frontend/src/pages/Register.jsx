@@ -7,6 +7,9 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+  const [showNameTip, setShowNameTip] = useState(false);
+  const [showEmailTip, setShowEmailTip] = useState(false);
+  const [showPassTip, setShowPassTip] = useState(false);
   const navigate = useNavigate();
 
   const submit = async e => {
@@ -46,29 +49,59 @@ export default function Register() {
             <p className="text-muted">Create your account</p>
 
             <form onSubmit={submit}>
-              <input
-                className="form-control mb-2"
-                placeholder="Name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                required
-              />
+              <div className="mb-2 position-relative">
+                <input
+                  className="form-control"
+                  placeholder={showNameTip && !name ? "" : "Name"}
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  onFocus={() => setShowNameTip(true)}
+                  onBlur={() => setShowNameTip(false)}
+                  aria-describedby="name-tip"
+                  required
+                />
+                {showNameTip && !name && (
+                  <div id="name-tip" className="position-absolute" style={{ top: 8, left: 12, color: '#6c757d', fontSize: 12, pointerEvents: 'none' }}>
+                    Enter your display name
+                  </div>
+                )}
+              </div>
 
-              <input
-                className="form-control mb-2"
-                placeholder="E-mail"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-              />
+              <div className="mb-2 position-relative">
+                <input
+                  className="form-control"
+                  placeholder={showEmailTip && !email ? "" : "E-mail"}
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  onFocus={() => setShowEmailTip(true)}
+                  onBlur={() => setShowEmailTip(false)}
+                  aria-describedby="email-tip"
+                  required
+                />
+                {showEmailTip && !email && (
+                  <div id="email-tip" className="position-absolute" style={{ top: 8, left: 12, color: '#6c757d', fontSize: 12, pointerEvents: 'none' }}>
+                    Enter your email (e.g., user@example.com)
+                  </div>
+                )}
+              </div>
 
-              <input
-                className="form-control mb-3"
-                placeholder="Password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-              />
+              <div className="mb-3 position-relative">
+                <input
+                  className="form-control"
+                  placeholder={showPassTip && !password ? "" : "Password"}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  onFocus={() => setShowPassTip(true)}
+                  onBlur={() => setShowPassTip(false)}
+                  aria-describedby="pass-tip"
+                  required
+                />
+                {showPassTip && !password && (
+                  <div id="pass-tip" className="position-absolute" style={{ top: 8, left: 12, color: '#6c757d', fontSize: 12, pointerEvents: 'none' }}>
+                    Choose a password (can be a single character)
+                  </div>
+                )}
+              </div>
 
               <button className="btn btn-primary w-100">
                 Register

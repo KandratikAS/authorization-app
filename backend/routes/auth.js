@@ -6,18 +6,49 @@ import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 
 const router = express.Router();
-console.log(process.env.SMTP_HOST, process.env.SMTP_USER, process.env.SMTP_PASS)
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.ethereal.email',
-  port: process.env.SMTP_PORT || 587,
-  secure: false, 
-  auth: {
-    user: process.env.SMTP_USER || 'ethereal_user',
-    pass: process.env.SMTP_PASS || 'ethereal_pass',
-  },
-});
 
-/* ================= REGISTER ================= */
+const getTransporter = async () => {
+  if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST || 'smtp.gmail.com',
+      port: process.env.SMTP_PORT ? Number(process.env.SMTP_PORT) : 587,
+      secure: false,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+  }
+  const account = await nodemailer.createTestAccount();
+  return nodemailer.createTransport({
+    host: 'smtp.ethereal.email',
+    port: 587,
+    secure: false,
+    auth: { user: account.user, pass: account.pass },
+  });
+};
+
+async function sendVerificationEmail(to, link) {
+  const transporter = await getTransporter();
+  const info = await transporter.sendMail({
+    from: process.env.SMTP_FROM || '"Auth App" <no-reply@example.com>',
+    to,
+    subject: 'Verify your email',
+    html: `<p>Please verify your email by clicking on the following link: <a href="${link}">Verify Email</a></p>`,
+  });
+  const preview = nodemailer.getTestMessageUrl(info);
+  if (preview) console.log('Email preview URL:', preview);
+}
+
+async function sendResetEmail(to, link) {
+  const transporter = await getTransporter();
+  const info = await transporter.sendMail({
+    from: process.env.SMTP_FROM || '"Auth App" <no-reply@example.com>',
+    to,
+    subject: 'Reset your password',
+    html: `<p>To reset your password, click the link: <a href="${link}">Reset Password</a></p>`,
+  });
+  const preview = nodemailer.getTestMessageUrl(info);
+  if (preview) console.log('Reset email preview URL:', preview);
+}
+
 
 router.post('/register', async (req, res) => {
   try {
@@ -35,16 +66,9 @@ router.post('/register', async (req, res) => {
     const verificationLink = `http://localhost:5173/verify?token=${verificationToken}`;
 
     try {
-      await transporter.sendMail({
-        from: process.env.SMTP_FROM || '"Auth App" <no-reply@example.com>',
-        to: email,
-        subject: "Verify your email",
-        html: `<p>Please verify your email by clicking on the following link: <a href="${verificationLink}">Verify Email</a></p>`,
-      });
+      await sendVerificationEmail(email, verificationLink);
     } catch (emailError) {
       console.error("EMAIL SEND ERROR:", emailError);
-      // We might want to warn the user but still allow registration, 
-      // or fail the registration. For now, let's log it.
     }
 
     res.json({ ok: true, message: 'Registration successful. Please check your email to verify your account.' });
@@ -78,21 +102,80 @@ router.post('/verify', async (req, res) => {
   }
 });
 
-/* ================= LOGIN ================= */
+
+router.post('/forgot', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+
+    const [[user]] = await db.query('SELECT id, email FROM users WHERE email=?', [email]);
+    if (!user) return res.json({ ok: true });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 час
+
+    await db.query('UPDATE users SET reset_token=?, reset_expires=? WHERE id=?', [token, expires, user.id]);
+
+    const link = `http://localhost:5173/reset?token=${token}`;
+    await sendResetEmail(email, link);
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('FORGOT ERROR:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/reset', async (req, res) => {
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token and password are required' });
+
+    const [[user]] = await db.query('SELECT * FROM users WHERE reset_token=?', [token]);
+    if (!user) return res.status(400).json({ error: 'Invalid token' });
+    if (user.reset_expires && new Date(user.reset_expires).getTime() < Date.now()) {
+      return res.status(400).json({ error: 'Token expired' });
+    }
+
+    const hash = await bcrypt.hash(password, 10);
+    await db.query('UPDATE users SET password=?, reset_token=NULL, reset_expires=NULL WHERE id=?', [hash, user.id]);
+
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('RESET ERROR:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 
 router.post('/login', async (req, res) => {
-  const [[user]] = await db.query(
-    'SELECT * FROM users WHERE email=?',
-    [req.body.email]
-  );
+  const { email, password } = req.body;
 
-  // if (!user || user.status === 'blocked') return res.sendStatus(403);
+  const demoEmail = process.env.DEMO_EMAIL;
+  const demoPassword = process.env.DEMO_PASSWORD;
+  if (demoEmail && demoPassword && email === demoEmail && password === demoPassword) {
+    const [[existing]] = await db.query('SELECT * FROM users WHERE email=?', [demoEmail]);
+    const hash = await bcrypt.hash(demoPassword, 10);
+    if (!existing) {
+      await db.query(
+        "INSERT INTO users (name, email, password, status) VALUES (?, ?, ?, 'active')",
+        ['Demo', demoEmail, hash]
+      );
+    } else {
+      await db.query('UPDATE users SET password=?, status=?, verification_token=NULL WHERE id=?', [hash, 'active', existing.id]);
+    }
+  }
 
-  const ok = await bcrypt.compare(req.body.password, user.password);
+  const [[user]] = await db.query('SELECT * FROM users WHERE email=?', [email]);
+  if (!user || user.status === 'blocked') return res.sendStatus(403);
+  if (user.status === 'unverified') {
+    return res.status(403).json({ error: 'Please verify your email first' });
+  }
+
+  const ok = await bcrypt.compare(password, user.password);
   if (!ok) return res.sendStatus(401);
 
   await db.query('UPDATE users SET last_login=NOW() WHERE id=?', [user.id]);
-
   const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
   res.json({ token });
 });

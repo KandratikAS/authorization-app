@@ -4,29 +4,27 @@ import dotenv from 'dotenv';
 
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
+import authMiddleware from './middleware/auth.js';
 
 dotenv.config();
-console.log(process.env.DB_HOST, process.cwd()) 
+
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Корневой маршрут
 app.get('/', (req, res) => {
-  res.json({ message: 'Бэкенд запущен!' });
+  res.json({ message: 'The backend is launched!' });
 });
 
-// API маршруты
+app.use('/api/auth/admin', authMiddleware);
 app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/users', authMiddleware, userRoutes);
 
-// Обработка всех остальных маршрутов (404)
 app.use((req, res) => {
-  res.status(404).json({ error: 'Маршрут не найден' });
+  res.status(404).json({ error: 'Route not found' });
 });
 
-// Запуск сервера
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Бэкенд запущен на http://localhost:${PORT}`);
+  console.log(`The backend is running on http://localhost:${PORT}`);
 });

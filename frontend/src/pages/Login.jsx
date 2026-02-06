@@ -5,6 +5,8 @@ import { api } from "../api";
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showEmailTip, setShowEmailTip] = useState(false);
+  const [showPassTip, setShowPassTip] = useState(false);
   const navigate = useNavigate();
 
   const submit = async e => {
@@ -36,22 +38,38 @@ export default function Login() {
               <div className="mb-3 position-relative">
                 <input
                   className="form-control"
-                  placeholder="E-mail"
+                  placeholder={showEmailTip && !email ? "" : "E-mail"}
                   value={email}
                   onChange={e => setEmail(e.target.value)}
+                  onFocus={() => setShowEmailTip(true)}
+                  onBlur={() => setShowEmailTip(false)}
+                  aria-describedby="email-tip"
                   required
                 />
+                {showEmailTip && !email && (
+                  <div id="email-tip" className="position-absolute" style={{ top: 8, left: 12, color: '#6c757d', fontSize: 12, pointerEvents: 'none' }}>
+                    Enter your email (e.g., user@example.com)
+                  </div>
+                )}
               </div>
 
               <div className="mb-3 position-relative">
                 <input
                   type="password"
                   className="form-control"
-                  placeholder="Password"
+                  placeholder={showPassTip && !password ? "" : "Password"}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
+                  onFocus={() => setShowPassTip(true)}
+                  onBlur={() => setShowPassTip(false)}
+                  aria-describedby="pass-tip"
                   required
                 />
+                {showPassTip && !password && (
+                  <div id="pass-tip" className="position-absolute" style={{ top: 8, left: 12, color: '#6c757d', fontSize: 12, pointerEvents: 'none' }}>
+                    Enter your password (can be a single character)
+                  </div>
+                )}
               </div>
 
               <div className="form-check mb-4">
@@ -72,7 +90,7 @@ export default function Login() {
 
             <div className="d-flex justify-content-between">
               <Link to="/register">Sign up</Link>
-              <span className="text-muted">Forgot password?</span>
+              <Link to="/forgot">Forgot password?</Link>
             </div>
           </div>
         </div>
