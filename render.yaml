@@ -2,8 +2,6 @@ services:
   - name: users-admin-backend
     type: web
     env: node
-    region: frankfurt
-    plan: free
     rootDir: backend
     buildCommand: npm install
     startCommand: node index.js
