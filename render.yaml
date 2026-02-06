@@ -2,8 +2,6 @@ services:
   - name: users-admin-backend
     type: web
     env: node
-    region: frankfurt
-    plan: free
     rootDir: backend
     buildCommand: npm install
     startCommand: node index.js
@@ -14,13 +12,15 @@ services:
       - key: JWT_SECRET
         value: supersecret
       - key: DB_HOST
-        value: localhost
+        value: dpg-d62u657pm1nc738hpehg-a
+      - key: DB_PORT
+        value: 5432
       - key: DB_USER
-        value: root
+        value: users_xdp3_user
       - key: DB_PASSWORD
-        value:
+        value: MgOpXs5ZwCnAeeU1qtYlIS9JCg4sQ5aA
       - key: DB_NAME
-        value: users
+        value: users_xdp3
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
@@ -39,8 +39,6 @@ services:
   - name: users-admin-frontend
     type: web
     env: static
-    region: frankfurt
-    plan: free
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
