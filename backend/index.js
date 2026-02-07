@@ -12,7 +12,14 @@ const app = express();
 
 app.use(cors({
   origin: 'https://users-admin-frontend.onrender.com',
-  credentials: true, 
+  credentials: true,
+  methods: ['GET','POST','PUT','DELETE','OPTIONS'],
+  allowedHeaders: ['Content-Type','Authorization']
+}));
+
+app.options('*', cors({
+  origin: 'https://users-admin-frontend.onrender.com',
+  credentials: true
 }));
 
 app.use(express.json());
@@ -21,12 +28,10 @@ app.get('/', (req, res) => {
   res.json({ message: 'The backend is launched!' });
 });
 
-// Маршруты
 app.use('/api/auth/admin', authMiddleware);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', authMiddleware, userRoutes);
 
-// 404
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
