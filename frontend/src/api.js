@@ -3,7 +3,7 @@ import axios from 'axios';
 const raw = import.meta.env.VITE_API_URL;
 const BASE_URL = raw
   ? (/\/api\/?$/.test(raw) ? raw.replace(/\/+$/, '') : raw.replace(/\/+$/, '') + '/api')
-  : 'http://127.0.0.1:3001/api';
+  : 'https://users-admin-backend.onrender.com';
 
 export const api = axios.create({
   baseURL: BASE_URL
