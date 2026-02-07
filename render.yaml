@@ -12,15 +12,17 @@ services:
       - key: JWT_SECRET
         value: supersecret
       - key: DB_HOST
-        value: dpg-d62u657pm1nc738hpehg-a
+        value: dpg-d63j2175r7bs73d98hlg-a
       - key: DB_PORT
         value: 5432
       - key: DB_USER
-        value: users_xdp3_user
+        value: users_822u_user
       - key: DB_PASSWORD
-        value: MgOpXs5ZwCnAeeU1qtYlIS9JCg4sQ5aA
+        value: aTPefSlD3WbcKQP8KmumcUvTAymmS5Sc
       - key: DB_NAME
-        value: users_xdp3
+        value: users_822u
+      - key: DB_SSL
+        value: "true"
       - key: SMTP_HOST
         sync: false
       - key: SMTP_PORT
@@ -45,4 +47,4 @@ services:
     autoDeploy: true
     envVars:
       - key: VITE_API_URL
-        value: https://authorization-app-j376.onrender.com
+        value: https://users-admin-backend.onrender.com
