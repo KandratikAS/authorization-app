@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.get('', async (req, res) => {
   try {
-    const [users] = await db.query(`
+    const { rows: users } = await db.query(`
       SELECT id, name, email, status, last_login, created_at
       FROM users
       ORDER BY id DESC
@@ -41,7 +41,7 @@ router.put('/block', async (req, res) => {
   }
 
   try {
-    const placeholders = emails.map(() => '?').join(',');
+    const placeholders = emails.map((_, i) => `$${i + 1}`).join(',');
     await db.query(
       `UPDATE users SET status = 'blocked' WHERE email IN (${placeholders})`,
       emails
@@ -59,8 +59,11 @@ router.post('/unblock', async (req, res) => {
     return res.status(400).json({ error: 'No ID list passed' });
   }
   try {
-    const placeholders = ids.map(() => '?').join(',');
-    await db.query(`UPDATE users SET status='active' WHERE id IN (${placeholders})`, ids);
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+    await db.query(
+      `UPDATE users SET status='active' WHERE id IN (${placeholders})`,
+      ids
+    );
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
@@ -74,7 +77,7 @@ router.post('/delete', async (req, res) => {
     return res.status(400).json({ error: 'No ID list passed' });
   }
   try {
-    const placeholders = ids.map(() => '?').join(',');
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
     await db.query(`DELETE FROM users WHERE id IN (${placeholders})`, ids);
     res.json({ ok: true });
   } catch (err) {
@@ -87,7 +90,7 @@ router.post('/delete-unverified', async (req, res) => {
   const { ids } = req.body || {};
   try {
     if (Array.isArray(ids) && ids.length > 0) {
-      const placeholders = ids.map(() => '?').join(',');
+      const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
       await db.query(`DELETE FROM users WHERE status='unverified' AND id IN (${placeholders})`, ids);
     } else {
       await db.query(`DELETE FROM users WHERE status='unverified'`);

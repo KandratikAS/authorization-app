@@ -3,7 +3,11 @@ import { db } from '../db.js';
 
 export default async (req, res, next) => {
   try {
-    const token = req.headers.authorization.split(' ')[1];
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) return next();
+
+    const token = authHeader.split(' ')[1];
     const payload = jwt.verify(token, process.env.JWT_SECRET);
 
     const [[user]] = await db.query(
@@ -12,12 +16,14 @@ export default async (req, res, next) => {
     );
 
     if (!user || user.status === 'blocked') {
-      return res.sendStatus(401);
+      return res.sendStatus(403); 
     }
 
     req.userId = payload.id;
     next();
-  } catch {
-    res.sendStatus(401);
+  } catch (err) {
+    console.error('Auth middleware error:', err.message);
+    return res.sendStatus(403); 
   }
 };
+
