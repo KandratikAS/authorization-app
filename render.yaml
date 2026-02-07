@@ -12,32 +12,7 @@ services:
       - key: JWT_SECRET
         value: supersecret
       - key: DATABASE_URL
-        value: postgresql://users_822u_user:aTPefSlD3WbcKQP8KmumcUvTAymmS5Sc@dpg-d63j2175r7bs73d98hlg-a.virginia-postgres.render.com/users_822u    - key: DB_HOST
-        value: dpg-d63j2175r7bs73d98hlg-a
-      - key: DB_PORT
-        value: 5432
-      - key: DB_USER
-        value: users_822u_user
-      - key: DB_PASSWORD
-        value: aTPefSlD3WbcKQP8KmumcUvTAymmS5Sc
-      - key: DB_NAME
-        value: users_822u
-      - key: DB_SSL
-        value: "true"
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        sync: false
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
-        sync: false
-      - key: SMTP_FROM
-        sync: false
-      - key: DEMO_EMAIL
-        sync: false
-      - key: DEMO_PASSWORD
-        sync: false
+        value: postgresql://users_822u_user:aTPefSlD3WbcKQP8KmumcUvTAymmS5Sc@dpg-d63j2175r7bs73d98hlg-a.virginia-postgres.render.com/users_822u
 
   - name: users-admin-frontend
     type: web
