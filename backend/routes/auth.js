@@ -7,7 +7,8 @@ import crypto from 'crypto';
 
 const router = express.Router();
 
-const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const SERVER_URL = process.env.SERVER_URL || 'http://localhost:4000';
 
 const getTransporter = async () => {
   if (process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -29,7 +30,7 @@ const getTransporter = async () => {
 
 async function sendVerificationEmail(to, token) {
   const transporter = await getTransporter();
-  const link = `${frontendUrl}/verify?token=${token}`;
+  const link = `${SERVER_URL}/auth/verify?token=${token}`; // ссылка ведёт на сервер
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || '"Auth App" <no-reply@example.com>',
     to,
@@ -42,7 +43,7 @@ async function sendVerificationEmail(to, token) {
 
 async function sendResetEmail(to, token) {
   const transporter = await getTransporter();
-  const link = `${frontendUrl}/reset?token=${token}`;
+  const link = `${FRONTEND_URL}/reset?token=${token}`; 
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || '"Auth App" <no-reply@example.com>',
     to,
@@ -52,6 +53,7 @@ async function sendResetEmail(to, token) {
   const preview = nodemailer.getTestMessageUrl(info);
   if (preview) console.log('Reset email preview URL:', preview);
 }
+
 
 router.post('/register', async (req, res) => {
   try {
@@ -77,6 +79,24 @@ router.post('/register', async (req, res) => {
   }
 });
 
+router.get('/verify', async (req, res) => {
+  try {
+    const token = req.query.token;
+    if (!token) return res.status(400).send("Token is required");
+
+    const { rows } = await db.query('SELECT * FROM users WHERE verification_token=$1', [token]);
+    const user = rows[0];
+    if (!user) return res.status(400).send("Invalid or expired token");
+
+    await db.query('UPDATE users SET status=$1, verification_token=NULL WHERE id=$2', ['active', user.id]);
+
+    res.redirect(`${FRONTEND_URL}/login?verified=true`);
+  } catch (e) {
+    console.error("VERIFY GET ERROR:", e);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
 router.post('/verify', async (req, res) => {
   try {
     const { token } = req.body;
@@ -89,7 +109,29 @@ router.post('/verify', async (req, res) => {
     await db.query('UPDATE users SET status=$1, verification_token=NULL WHERE id=$2', ['active', user.id]);
     res.json({ ok: true });
   } catch (e) {
-    console.error("VERIFY ERROR:", e);
+    console.error("VERIFY POST ERROR:", e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    const { rows } = await db.query('SELECT * FROM users WHERE email=$1', [email]);
+    const user = rows[0];
+
+    if (!user || user.status === 'blocked') return res.sendStatus(403);
+    if (user.status === 'unverified') return res.status(403).json({ error: 'Please verify your email first' });
+
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) return res.sendStatus(401);
+
+    await db.query('UPDATE users SET last_login=NOW() WHERE id=$1', [user.id]);
+    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
+    res.json({ token });
+  } catch (e) {
+    console.error('LOGIN ERROR:', e);
     res.status(500).json({ error: e.message });
   }
 });
@@ -130,10 +172,7 @@ router.post('/reset', async (req, res) => {
     }
 
     const hash = await bcrypt.hash(password, 10);
-    await db.query(
-      'UPDATE users SET password=$1, reset_token=NULL, reset_expires=NULL WHERE id=$2',
-      [hash, user.id]
-    );
+    await db.query('UPDATE users SET password=$1, reset_token=NULL, reset_expires=NULL WHERE id=$2', [hash, user.id]);
 
     res.json({ ok: true });
   } catch (e) {
@@ -142,46 +181,5 @@ router.post('/reset', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    const demoEmail = process.env.DEMO_EMAIL;
-    const demoPassword = process.env.DEMO_PASSWORD;
-    if (demoEmail && demoPassword && email === demoEmail && password === demoPassword) {
-      const { rows: existingRows } = await db.query('SELECT * FROM users WHERE email=$1', [demoEmail]);
-      const existing = existingRows[0];
-      const hash = await bcrypt.hash(demoPassword, 10);
-
-      if (!existing) {
-        await db.query(
-          "INSERT INTO users (name, email, password, status) VALUES ($1, $2, $3, 'active')",
-          ['Demo', demoEmail, hash]
-        );
-      } else {
-        await db.query(
-          'UPDATE users SET password=$1, status=$2, verification_token=NULL WHERE id=$3',
-          [hash, 'active', existing.id]
-        );
-      }
-    }
-
-    const { rows } = await db.query('SELECT * FROM users WHERE email=$1', [email]);
-    const user = rows[0];
-
-    if (!user || user.status === 'blocked') return res.sendStatus(403);
-    if (user.status === 'unverified') return res.status(403).json({ error: 'Please verify your email first' });
-
-    const ok = await bcrypt.compare(password, user.password);
-    if (!ok) return res.sendStatus(401);
-
-    await db.query('UPDATE users SET last_login=NOW() WHERE id=$1', [user.id]);
-    const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET);
-    res.json({ token });
-  } catch (e) {
-    console.error('LOGIN ERROR:', e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
 export default router;
+

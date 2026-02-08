@@ -5,11 +5,18 @@ import { api } from "../api";
 export default function Verify() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
+  const verified = searchParams.get("verified"); 
   const navigate = useNavigate();
   const [status, setStatus] = useState("verifying");
   const [error, setError] = useState("");
 
   useEffect(() => {
+    if (verified === "true") {
+      setStatus("success");
+      setTimeout(() => navigate("/login"), 3000);
+      return;
+    }
+
     if (!token) {
       setStatus("error");
       setError("No token provided");
@@ -25,7 +32,7 @@ export default function Verify() {
         setStatus("error");
         setError(e.response?.data?.error || e.message);
       });
-  }, [token, navigate]);
+  }, [token, verified, navigate]);
 
   return (
     <div className="container d-flex justify-content-center align-items-center vh-100">
