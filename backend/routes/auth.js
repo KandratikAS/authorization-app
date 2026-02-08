@@ -30,7 +30,7 @@ const getTransporter = async () => {
 
 async function sendVerificationEmail(to, token) {
   const transporter = await getTransporter();
-  const link = `${SERVER_URL}/auth/verify?token=${token}`; // ссылка ведёт на сервер
+  const link = `${SERVER_URL}/api/auth/verify?token=${token}`; // ссылка ведёт на сервер
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || '"Auth App" <no-reply@example.com>',
     to,
