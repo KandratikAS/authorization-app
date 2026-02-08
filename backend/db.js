@@ -3,7 +3,6 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Локальная или облачная конфигурация
 const dbConfig = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -19,7 +18,7 @@ async function connectWithRetry(retries = 10) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       const pool = new Pool(dbConfig);
-      await pool.query('SELECT 1'); // проверка соединения
+      await pool.query('SELECT 1'); 
       console.log('✅ Database connected successfully');
       return pool;
     } catch (err) {
@@ -32,7 +31,6 @@ async function connectWithRetry(retries = 10) {
 
 export const db = await connectWithRetry();
 
-// Создание таблицы users
 try {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
