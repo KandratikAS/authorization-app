@@ -3,29 +3,24 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+// Локальная или облачная конфигурация
 const dbConfig = {
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME,
+  port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 5432,
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false,
 };
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
 async function connectWithRetry(retries = 10) {
-  const connectionString = process.env.DATABASE_URL;
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      let pool;
-      if (connectionString) {
-        pool = new Pool({ connectionString, ssl: { rejectUnauthorized: false } });
-      } else {
-        if (!dbConfig.host || !dbConfig.user || !dbConfig.database) {
-          throw new Error('DB env vars missing: DB_HOST/DB_USER/DB_NAME');
-        }
-        pool = new Pool(dbConfig);
-      }
-      await pool.query('SELECT 1');
+      const pool = new Pool(dbConfig);
+      await pool.query('SELECT 1'); // проверка соединения
+      console.log('✅ Database connected successfully');
       return pool;
     } catch (err) {
       console.error(`DB connect attempt ${attempt} failed:`, err.message);
@@ -37,6 +32,7 @@ async function connectWithRetry(retries = 10) {
 
 export const db = await connectWithRetry();
 
+// Создание таблицы users
 try {
   await db.query(`
     CREATE TABLE IF NOT EXISTS users (
