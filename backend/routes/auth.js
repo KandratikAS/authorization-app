@@ -7,6 +7,8 @@ import crypto from 'crypto';
 
 const router = express.Router();
 
+const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+
 const getTransporter = async () => {
   if (process.env.SMTP_USER && process.env.SMTP_PASS) {
     return nodemailer.createTransport({
@@ -25,8 +27,9 @@ const getTransporter = async () => {
   });
 };
 
-async function sendVerificationEmail(to, link) {
+async function sendVerificationEmail(to, token) {
   const transporter = await getTransporter();
+  const link = `${frontendUrl}/verify?token=${token}`;
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || '"Auth App" <no-reply@example.com>',
     to,
@@ -37,8 +40,9 @@ async function sendVerificationEmail(to, link) {
   if (preview) console.log('Email preview URL:', preview);
 }
 
-async function sendResetEmail(to, link) {
+async function sendResetEmail(to, token) {
   const transporter = await getTransporter();
+  const link = `${frontendUrl}/reset?token=${token}`;
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || '"Auth App" <no-reply@example.com>',
     to,
@@ -51,7 +55,6 @@ async function sendResetEmail(to, link) {
 
 router.post('/register', async (req, res) => {
   try {
-    console.log("REGISTER BODY:", req.body);
     const { name, email, password } = req.body;
     const hash = await bcrypt.hash(password, 10);
     const verificationToken = crypto.randomBytes(32).toString('hex');
@@ -61,10 +64,8 @@ router.post('/register', async (req, res) => {
       [name, email, hash, 'unverified', verificationToken]
     );
 
-    const verificationLink = `http://localhost:5173/verify?token=${verificationToken}`;
-
     try {
-      await sendVerificationEmail(email, verificationLink);
+      await sendVerificationEmail(email, verificationToken);
     } catch (emailError) {
       console.error("EMAIL SEND ERROR:", emailError);
     }
@@ -83,11 +84,9 @@ router.post('/verify', async (req, res) => {
 
     const { rows } = await db.query('SELECT * FROM users WHERE verification_token=$1', [token]);
     const user = rows[0];
-
     if (!user) return res.status(400).json({ error: 'Invalid or expired token' });
 
     await db.query('UPDATE users SET status=$1, verification_token=NULL WHERE id=$2', ['active', user.id]);
-
     res.json({ ok: true });
   } catch (e) {
     console.error("VERIFY ERROR:", e);
@@ -100,17 +99,15 @@ router.post('/forgot', async (req, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ error: 'Email is required' });
 
-    const { rows } = await db.query('SELECT id, email FROM users WHERE email=$1', [email]);
+    const { rows } = await db.query('SELECT id FROM users WHERE email=$1', [email]);
     const user = rows[0];
-    if (!user) return res.json({ ok: true }); // Don't reveal email existence
+    if (!user) return res.json({ ok: true }); 
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    const expires = new Date(Date.now() + 60 * 60 * 1000); 
 
     await db.query('UPDATE users SET reset_token=$1, reset_expires=$2 WHERE id=$3', [token, expires, user.id]);
-
-    const link = `http://localhost:5173/reset?token=${token}`;
-    await sendResetEmail(email, link);
+    await sendResetEmail(email, token);
 
     res.json({ ok: true });
   } catch (e) {
@@ -126,8 +123,8 @@ router.post('/reset', async (req, res) => {
 
     const { rows } = await db.query('SELECT * FROM users WHERE reset_token=$1', [token]);
     const user = rows[0];
-
     if (!user) return res.status(400).json({ error: 'Invalid token' });
+
     if (user.reset_expires && new Date(user.reset_expires).getTime() < Date.now()) {
       return res.status(400).json({ error: 'Token expired' });
     }
