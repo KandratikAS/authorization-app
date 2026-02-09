@@ -8,7 +8,7 @@ import crypto from 'crypto';
 const router = express.Router();
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
-const SERVER_URL = process.env.SERVER_URL || 'http://localhost:4000';
+const SERVER_URL = process.env.SERVER_URL || 'http://localhost:3001';
 
 const getTransporter = async () => {
   if (process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -30,7 +30,7 @@ const getTransporter = async () => {
 
 async function sendVerificationEmail(to, token) {
   const transporter = await getTransporter();
-  const link = `${SERVER_URL}/api/auth/verify?token=${token}`; // ссылка ведёт на сервер
+  const link = `${SERVER_URL}/api/auth/verify?token=${token}`;
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || '"Auth App" <no-reply@example.com>',
     to,
@@ -43,7 +43,7 @@ async function sendVerificationEmail(to, token) {
 
 async function sendResetEmail(to, token) {
   const transporter = await getTransporter();
-  const link = `${FRONTEND_URL}/reset?token=${token}`; 
+  const link = `${FRONTEND_URL}/reset?token=${token}`;
   const info = await transporter.sendMail({
     from: process.env.SMTP_FROM || '"Auth App" <no-reply@example.com>',
     to,
@@ -54,7 +54,7 @@ async function sendResetEmail(to, token) {
   if (preview) console.log('Reset email preview URL:', preview);
 }
 
-
+// ------------------- REGISTER -------------------
 router.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -79,6 +79,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
+// ------------------- VERIFY -------------------
 router.get('/verify', async (req, res) => {
   try {
     const token = req.query.token;
@@ -114,10 +115,47 @@ router.post('/verify', async (req, res) => {
   }
 });
 
+// ------------------- LOGIN -------------------
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    // 🔹 Демо-аккаунты
+    const demoAccounts = [
+      { email: process.env.DEMO_EMAIL_1, password: process.env.DEMO_PASSWORD_1, name: 'Demo User 1' },
+      { email: process.env.DEMO_EMAIL_2, password: process.env.DEMO_PASSWORD_2, name: 'Demo User 2' },
+    ];
+
+    const demo = demoAccounts.find(acc => acc.email === email && acc.password === password);
+
+    if (demo) {
+      const { rows } = await db.query('SELECT * FROM users WHERE email=$1', [email]);
+      let demoUser = rows[0];
+      const hash = await bcrypt.hash(password, 10);
+
+      if (!demoUser) {
+        // Создаём демо-пользователя, если его нет
+        const { rows: newRows } = await db.query(
+          'INSERT INTO users (name, email, password, status) VALUES ($1, $2, $3, $4) RETURNING *',
+          [demo.name, email, hash, 'active']
+        );
+        demoUser = newRows[0];
+      } else {
+        // Сбрасываем имя и пароль на дефолтные
+        await db.query(
+          'UPDATE users SET name=$1, password=$2, status=$3 WHERE id=$4',
+          [demo.name, hash, 'active', demoUser.id]
+        );
+      }
+
+      // 🔹 Всегда обновляем last_login
+      await db.query('UPDATE users SET last_login=NOW() WHERE id=$1', [demoUser.id]);
+
+      const token = jwt.sign({ id: demoUser.id }, process.env.JWT_SECRET);
+      return res.json({ token, demo: true, name: demo.name });
+    }
+
+    // 🔹 Обычная авторизация
     const { rows } = await db.query('SELECT * FROM users WHERE email=$1', [email]);
     const user = rows[0];
 
@@ -136,6 +174,7 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// ------------------- FORGOT PASSWORD -------------------
 router.post('/forgot', async (req, res) => {
   try {
     const { email } = req.body;
@@ -143,10 +182,10 @@ router.post('/forgot', async (req, res) => {
 
     const { rows } = await db.query('SELECT id FROM users WHERE email=$1', [email]);
     const user = rows[0];
-    if (!user) return res.json({ ok: true }); 
+    if (!user) return res.json({ ok: true });
 
     const token = crypto.randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 60 * 60 * 1000); 
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
 
     await db.query('UPDATE users SET reset_token=$1, reset_expires=$2 WHERE id=$3', [token, expires, user.id]);
     await sendResetEmail(email, token);
@@ -158,6 +197,7 @@ router.post('/forgot', async (req, res) => {
   }
 });
 
+// ------------------- RESET PASSWORD -------------------
 router.post('/reset', async (req, res) => {
   try {
     const { token, password } = req.body;
@@ -182,4 +222,3 @@ router.post('/reset', async (req, res) => {
 });
 
 export default router;
-
